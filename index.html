@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<head>
+		<title>FLIP Fluid</title>
+		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+		<meta http-equiv="Pragma" content="no-cache">
+		<meta http-equiv="Expires" content="0">
+		<style>
+			body {
+				margin: 0;
+				padding: 10px;
+				font-family: Arial;
+				background-color: #f0f0f0;
+			}
+			
+			.controls {
+				margin-bottom: 10px;
+				padding: 10px;
+				background-color: white;
+				border-radius: 5px;
+				box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+			}
+			
+			.control-group {
+				display: inline-block;
+				margin-right: 15px;
+				margin-bottom: 5px;
+			}
+			
+			label {
+				font-weight: bold;
+				margin-right: 5px;
+			}
+			
+			input[type="range"] {
+				width: 100px;
+			}
+			
+			button {
+				padding: 5px 15px;
+				background-color: #4CAF50;
+				color: white;
+				border: none;
+				border-radius: 3px;
+				cursor: pointer;
+			}
+			
+			button:hover {
+				background-color: #45a049;
+			}
+			
+			/* Advanced Settings Panel */
+			.advanced-panel {
+				position: fixed;
+				top: 0;
+				right: -350px;
+				width: 340px;
+				height: 100vh;
+				background-color: #f8f9fa;
+				border-left: 2px solid #333;
+				transition: right 0.3s ease;
+				z-index: 1000;
+				overflow-y: auto;
+				overflow-x: visible;
+				box-shadow: -5px 0 15px rgba(0,0,0,0.2);
+				padding-top: 60px; /* Add space at top for tooltips */
+			}
+			
+			.advanced-panel.open {
+				right: 0;
+			}
+			
+			.advanced-toggle {
+				position: fixed;
+				top: 20px;
+				right: 20px;
+				background-color: #333;
+				color: white;
+				border: none;
+				padding: 10px 15px;
+				border-radius: 5px;
+				cursor: pointer;
+				z-index: 10001;
+				font-size: 14px;
+			}
+			
+			.advanced-toggle:hover {
+				background-color: #555;
+			}
+			
+			.advanced-header {
+				position: fixed;
+				top: 0;
+				right: -350px;
+				width: 340px;
+				background-color: #333;
+				color: white;
+				padding: 15px;
+				font-size: 16px;
+				font-weight: bold;
+				z-index: 1001;
+				transition: right 0.3s ease;
+			}
+			
+			.advanced-panel.open .advanced-header {
+				right: 0;
+			}
+			
+			.advanced-section {
+				padding: 15px;
+				border-bottom: 1px solid #ddd;
+			}
+			
+			.advanced-section h3 {
+				margin: 0 0 10px 0;
+				color: #333;
+				font-size: 14px;
+				font-weight: bold;
+			}
+			
+			.advanced-control {
+				margin-bottom: 10px;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+			}
+			
+			.advanced-control label {
+				font-size: 12px;
+				font-weight: normal;
+				flex: 1;
+				margin-right: 10px;
+			}
+			
+			.advanced-control input {
+				width: 80px;
+				font-size: 12px;
+			}
+			
+			.advanced-control input[type="range"] {
+				width: 100px;
+			}
+			
+			.value-display {
+				min-width: 40px;
+				font-size: 11px;
+				text-align: right;
+			}
+			
+			/* Tooltip Styles */
+			.tooltip {
+				position: relative;
+				cursor: help;
+			}
+			
+			.tooltip::before {
+				content: attr(data-tooltip);
+				position: fixed;
+				right: 360px;
+				top: var(--tooltip-top, 50%);
+				transform: translateY(-50%);
+				background-color: #333;
+				color: white;
+				padding: 8px 12px;
+				border-radius: 4px;
+				font-size: 12px;
+				z-index: 10000;
+				opacity: 0;
+				visibility: hidden;
+				transition: opacity 0.3s, visibility 0.3s;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+				width: 250px;
+				white-space: normal;
+				line-height: 1.3;
+				pointer-events: none;
+			}
+			
+			.tooltip::after {
+				content: "";
+				position: fixed;
+				right: 350px;
+				top: var(--tooltip-top, 50%);
+				transform: translateY(-50%);
+				border: 5px solid transparent;
+				border-left-color: #333;
+				z-index: 10000;
+				opacity: 0;
+				visibility: hidden;
+				transition: opacity 0.3s, visibility 0.3s;
+				pointer-events: none;
+			}
+			
+			.tooltip:hover::before,
+			.tooltip:hover::after {
+				opacity: 1;
+				visibility: visible;
+			}
+			
+			/* Responsive tooltip positioning */
+			.tooltip.tooltip-right::before {
+				left: auto;
+				right: 0;
+			}
+			
+			.tooltip.tooltip-right::after {
+				left: auto;
+				right: 20px;
+			}
+			
+			/* Tooltips for main controls (not in advanced panel) */
+			.controls .tooltip::before {
+				left: 50%;
+				right: auto;
+				margin-right: 0;
+				transform: translateX(-50%);
+				margin-left: 0;
+				top: auto;
+				bottom: 125%;
+			}
+			
+			.controls .tooltip::after {
+				left: 50%;
+				right: auto;
+				margin-right: 0;
+				transform: translateX(-50%);
+				margin-left: 0;
+				top: auto;
+				bottom: 115%;
+				border: 5px solid transparent;
+				border-top-color: #333;
+				border-left-color: transparent;
+			}
+			
+			/* Hide tooltips when advanced panel is closed */
+			.advanced-panel:not(.open) .tooltip::before,
+			.advanced-panel:not(.open) .tooltip::after {
+				display: none;
+			}
+		</style>
+	</head>
+	
+<body>
+	<div class="controls">
+		<div class="control-group">
+			<label class="tooltip" data-tooltip="Number of grid cells for the simulation. This controls the resolution of the physics grid. For square containers, the square size will be 80% of this value. Higher values = more detail but slower performance.">Grid Size:</label>
+			<input type="range" id="gridSize" min="5" max="100" value="50" oninput="updateGridSize()">
+			<span id="gridSizeValue">50</span>
+		</div>
+		
+		<div class="control-group">
+			<label>Display Mode:</label>
+			<select id="displayMode" onchange="changeDisplayMode()">
+				<option value="particles">Particles Only</option>
+				<option value="grid" selected>Grid Only</option>
+				<option value="both">Both</option>
+			</select>
+		</div>
+		
+		<div class="control-group">
+			<label>Container Shape:</label>
+			<select id="containerShape" onchange="changeContainerShape()">
+				<option value="rectangular">Rectangular</option>
+				<option value="square">Square ⬜</option>
+				<option value="circular" selected>Circular</option>
+				<option value="heart">Heart ❤️</option>
+				<option value="star">Star ⭐</option>
+				<option value="diamond">Diamond 💎</option>
+			</select>
+		</div>
+		
+		<div class="control-group">
+			<input type="checkbox" id="separateParticles" checked onchange="scene.separateParticles = this.checked; document.getElementById('advSeparateParticles').checked = this.checked;">
+			<label for="separateParticles">Separate Particles</label>
+		</div>
+		
+		<div class="control-group">
+			<input type="checkbox" id="gravityMode" checked onchange="toggleGravityMode()">
+			<label for="gravityMode">Gravity Mode (Click to set vector - distance = magnitude)</label>
+		</div>
+		
+		<div class="control-group">
+			<input type="checkbox" id="accelerometerMode" onchange="toggleAccelerometer()">
+			<label for="accelerometerMode">Use Accelerometer (Mobile)</label>
+		</div>
+		
+		<div class="control-group">
+			<button onclick="togglePause()">⏸️ Pause</button>
+			<button onclick="resetSimulation()">🔄 Reset</button>
+		</div>
+	</div>
+	
+	<canvas id="myCanvas" style="border:2px solid #333; background-color: #fff;"></canvas>
+	
+	<!-- Advanced Settings Toggle Button -->
+	<button class="advanced-toggle" onclick="toggleAdvancedPanel()">⚙️ Advanced</button>
+	
+	<!-- Advanced Settings Panel -->
+	<div id="advancedPanel" class="advanced-panel">
+		<div class="advanced-header">
+			Advanced Settings
+		</div>
+		
+		<div class="advanced-section">
+			<h3>Grid & Physics</h3>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Controls the size of particles relative to grid cells. Smaller values = smaller particles, larger values = bigger particles. Affects collision detection and visual appearance.">Particle Radius Factor:</label>
+				<input type="range" id="particleRadiusFactor" min="0.1" max="0.8" step="0.05" value="0.3" oninput="updateParticleRadius()">
+				<span class="value-display" id="particleRadiusValue">0.30</span>
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Time step for physics simulation. Smaller values = more stable but slower simulation. Larger values = faster but potentially unstable. Balance between speed and accuracy.">Time Step (dt):</label>
+				<input type="range" id="timeStep" min="0.008" max="0.05" step="0.002" value="0.017" oninput="updateTimeStep()">
+				<span class="value-display" id="timeStepValue">0.017</span>
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Number of iterations for pressure solver. More iterations = more accurate pressure but slower performance. Critical for fluid incompressibility and realistic behavior.">Pressure Iterations:</label>
+				<input type="range" id="pressureIters" min="10" max="200" step="5" value="50" oninput="updatePressureIters()">
+				<span class="value-display" id="pressureItersValue">50</span>
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Fluid density in kg/m³. Water ≈ 1000. Higher density = heavier fluid, more inertia. Lower density = lighter fluid, more responsive to forces. Affects gravity response.">Density:</label>
+				<input type="range" id="fluidDensity" min="100" max="2000" step="50" value="1000" oninput="updateDensity()">
+				<span class="value-display" id="densityValue">1000</span>
+			</div>
+		</div>
+		
+		<div class="advanced-section">
+			<h3>Fluid Behavior</h3>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="PIC (Particle-In-Cell) vs FLIP (Fluid-Implicit-Particle) mixing ratio. 0.0 = pure PIC (stable, damped), 1.0 = pure FLIP (energetic, can be noisy). 0.9 is usually optimal for realistic fluid behavior.">PIC/FLIP Ratio:</label>
+				<input type="range" id="flipRatio" min="0" max="10" value="9" oninput="updateFlipRatio()">
+				<span class="value-display" id="flipRatioValue">0.9</span>
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Fluid viscosity - resistance to flow. 0 = water-like (no viscosity), higher values = honey/molasses-like behavior. Affects how fluid flows, splashes, and settles.">Viscosity:</label>
+				<input type="range" id="viscosity" min="0" max="20" value="0" oninput="updateViscosity()">
+				<span class="value-display" id="viscosityValue">0.0</span>
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Successive Over-Relaxation parameter for pressure solver convergence. Values > 1.0 accelerate convergence but may cause instability. 1.9 is typically optimal for most cases.">Over-relaxation:</label>
+				<input type="range" id="overRelaxation" min="1.0" max="2.0" step="0.1" value="1.9" oninput="updateOverRelaxation()">
+				<span class="value-display" id="overRelaxationValue">1.9</span>
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Corrects numerical drift in the simulation. Helps maintain energy conservation and prevents unrealistic behavior over long simulations. Recommended to keep enabled.">Compensate Drift:</label>
+				<input type="checkbox" id="compensateDrift" checked onchange="updateCompensateDrift()">
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Prevents particles from overlapping by applying separation forces. Essential for realistic particle spacing and visual quality. Disable only for performance testing.">Separate Particles:</label>
+				<input type="checkbox" id="advSeparateParticles" checked onchange="updateSeparateParticles()">
+			</div>
+		</div>
+		
+		<div class="advanced-section">
+			<h3>Container Settings</h3>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Size factor for square container. 1.0 = square size equals grid size, 0.8 = square is 80% of grid size. Only affects square container shape.">Square Size Factor:</label>
+				<input type="range" id="squareSizeFactor" min="0.5" max="1.0" step="0.05" value="0.8" oninput="updateSquareSizeFactor()">
+				<span class="value-display" id="squareSizeFactorValue">0.80</span>
+			</div>
+		</div>
+		
+		<div class="advanced-section">
+			<h3>Fluid Distribution</h3>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Initial height of the fluid as percentage of container height. 70% means fluid fills 70% of the vertical space. Affects how much fluid is in the simulation.">Water Height (%):</label>
+				<input type="range" id="waterHeight" min="0.1" max="1.0" step="0.05" value="0.7" oninput="updateWaterHeight()">
+				<span class="value-display" id="waterHeightValue">70%</span>
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Initial width of the fluid as percentage of container width. 50% means fluid occupies half the horizontal space. Determines the initial fluid shape and volume.">Water Width (%):</label>
+				<input type="range" id="waterWidth" min="0.1" max="1.0" step="0.05" value="0.5" oninput="updateWaterWidth()">
+				<span class="value-display" id="waterWidthValue">50%</span>
+			</div>
+		</div>
+		
+		<div class="advanced-section">
+			<h3>Rendering</h3>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Visual size of grid cells when grid display is enabled. Smaller values show cell boundaries more clearly. Larger values create more filled appearance. Purely cosmetic setting.">Grid Visual Size:</label>
+				<input type="range" id="gridVisualSize" min="0.4" max="1.0" step="0.05" value="0.85" oninput="updateGridVisualSize()">
+				<span class="value-display" id="gridVisualValue">0.80</span>
+			</div>
+			<div class="advanced-control">
+				<label class="tooltip" data-tooltip="Visual size multiplier for particle rendering. Higher values make particles appear larger on screen. Does not affect physics, only visual appearance. Useful for screenshots or presentation.">Particle Visual Size:</label>
+				<input type="range" id="particleVisualSize" min="0.5" max="3.0" step="0.1" value="2.0" oninput="updateParticleVisualSize()">
+				<span class="value-display" id="particleVisualValue">2.0</span>
+			</div>
+		</div>
+		
+		<div class="advanced-section">
+			<h3>Actions</h3>
+			<div class="advanced-control">
+				<button class="tooltip" data-tooltip="Applies changes that require simulation restart (particle size, density, fluid distribution). Some settings are applied immediately, others need this button." onclick="applyAdvancedSettings()" style="width: 100%; margin-bottom: 10px;">Apply Changes</button>
+			</div>
+			<div class="advanced-control">
+				<button class="tooltip" data-tooltip="Resets all advanced settings to their default values and restarts the simulation. Use this to return to optimal settings if experiments go wrong." onclick="resetAdvancedSettings()" style="width: 100%; background-color: #ff6b6b;">Reset to Defaults</button>
+			</div>
+		</div>
+	</div>
+	
+<script>
+
+	var canvas = document.getElementById("myCanvas");
+	var gl = canvas.getContext("webgl");	
+	canvas.width = window.innerWidth - 40;
+	canvas.height = window.innerHeight - 120;
+
+	canvas.focus();
+
+	var simHeight = 3.0;	
+	var cScale = canvas.height / simHeight;
+	var simWidth = canvas.width / cScale;
+
+	// Advanced Settings Variables
+	var advancedSettings = {
+		particleRadiusFactor: 0.3,
+		timeStep: 1.0 / 60.0,
+		pressureIterations: 50,
+		density: 1000.0,
+		flipRatio: 0.9,
+		viscosity: 0.3,
+		overRelaxation: 1.9,
+		compensateDrift: true,
+		separateParticles: true,
+		squareSizeFactor: 0.8,
+		waterHeight: 0.7,
+		waterWidth: 0.5,
+		gridVisualSize: 0.85,
+		particleVisualSize: 2.0
+	};
+
+	var U_FIELD = 0;
+	var V_FIELD = 1;
+	
+	var FLUID_CELL = 0;
+	var AIR_CELL = 1;
+	var SOLID_CELL = 2;
+
+	function clamp(x, min, max) {
+		if (x < min) return min;
+		else if (x > max) return max;
+		else return x;
+	}
+
+	// ----------------- FLIP Fluid Class ------------------------------
+
+	class FlipFluid {
+		constructor(density, width, height, spacing, particleRadius, maxParticles) {
+			// Fluid grid
+			this.density = density;
+			this.fNumX = Math.floor(width / spacing) + 1;
+			this.fNumY = Math.floor(height / spacing) + 1;
+			this.h = Math.max(width / this.fNumX, height / this.fNumY);
+			this.fInvSpacing = 1.0 / this.h;
+			this.fNumCells = this.fNumX * this.fNumY;
+
+			this.u = new Float32Array(this.fNumCells);
+			this.v = new Float32Array(this.fNumCells);
+			this.du = new Float32Array(this.fNumCells);
+			this.dv = new Float32Array(this.fNumCells);
+			this.prevU = new Float32Array(this.fNumCells);
+			this.prevV = new Float32Array(this.fNumCells);
+			this.p = new Float32Array(this.fNumCells);
+			this.s = new Float32Array(this.fNumCells);
+			this.cellType = new Int32Array(this.fNumCells);
+
+			// Particles
+			this.maxParticles = maxParticles;
+			this.particlePos = new Float32Array(2 * this.maxParticles);
+			this.particleVel = new Float32Array(2 * this.maxParticles);
+			this.particleDensity = new Float32Array(this.fNumCells);
+			this.particleRestDensity = 0.0;
+
+			this.particleRadius = particleRadius;
+			this.pInvSpacing = 1.0 / (2.2 * particleRadius);
+			this.pNumX = Math.floor(width * this.pInvSpacing) + 1;
+			this.pNumY = Math.floor(height * this.pInvSpacing) + 1;
+			this.pNumCells = this.pNumX * this.pNumY;
+
+			this.numCellParticles = new Int32Array(this.pNumCells);
+			this.firstCellParticle = new Int32Array(this.pNumCells + 1);
+			this.cellParticleIds = new Int32Array(maxParticles);
+
+			this.numParticles = 0;
+		}
+
+		integrateParticles(dt, gravityX, gravityY) {
+			for (var i = 0; i < this.numParticles; i++) {
+				this.particleVel[2 * i] += dt * gravityX;
+				this.particleVel[2 * i + 1] += dt * gravityY;
+				
+				// Apply viscosity by damping velocity
+				var viscosityDamping = 1.0 - (scene.viscosity * dt);
+				viscosityDamping = Math.max(0.0, viscosityDamping); // Prevent negative damping
+				this.particleVel[2 * i] *= viscosityDamping;
+				this.particleVel[2 * i + 1] *= viscosityDamping;
+				
+				this.particlePos[2 * i] += this.particleVel[2 * i] * dt;
+				this.particlePos[2 * i + 1] += this.particleVel[2 * i + 1] * dt;
+			}
+		}
+
+		pushParticlesApart(numIters) {
+			// Contar partículas por celda
+			this.numCellParticles.fill(0);
+
+			for (var i = 0; i < this.numParticles; i++) {
+				var x = this.particlePos[2 * i];
+				var y = this.particlePos[2 * i + 1];
+				var xi = clamp(Math.floor(x * this.pInvSpacing), 0, this.pNumX - 1);
+				var yi = clamp(Math.floor(y * this.pInvSpacing), 0, this.pNumY - 1);
+				var cellNr = xi * this.pNumY + yi;
+				this.numCellParticles[cellNr]++;
+			}
+
+			// Sumas parciales
+			var first = 0;
+			for (var i = 0; i < this.pNumCells; i++) {
+				this.firstCellParticle[i] = first;
+				first += this.numCellParticles[i];
+			}
+			this.firstCellParticle[this.pNumCells] = first;
+
+			// Llenar partículas en celdas
+			this.numCellParticles.fill(0);
+			for (var i = 0; i < this.numParticles; i++) {
+				var x = this.particlePos[2 * i];
+				var y = this.particlePos[2 * i + 1];
+				var xi = clamp(Math.floor(x * this.pInvSpacing), 0, this.pNumX - 1);
+				var yi = clamp(Math.floor(y * this.pInvSpacing), 0, this.pNumY - 1);
+				var cellNr = xi * this.pNumY + yi;
+				this.cellParticleIds[this.firstCellParticle[cellNr] + this.numCellParticles[cellNr]] = i;
+				this.numCellParticles[cellNr]++;
+			}
+
+			// Separar partículas
+			var minDist = 2.0 * this.particleRadius;
+			var minDist2 = minDist * minDist;
+
+			for (var iter = 0; iter < numIters; iter++) {
+				for (var i = 0; i < this.numParticles; i++) {
+					var px = this.particlePos[2 * i];
+					var py = this.particlePos[2 * i + 1];
+
+					var pxi = Math.floor(px * this.pInvSpacing);
+					var pyi = Math.floor(py * this.pInvSpacing);
+					var x0 = Math.max(pxi - 1, 0);
+					var y0 = Math.max(pyi - 1, 0);
+					var x1 = Math.min(pxi + 1, this.pNumX - 1);
+					var y1 = Math.min(pyi + 1, this.pNumY - 1);
+
+					for (var xi = x0; xi <= x1; xi++) {
+						for (var yi = y0; yi <= y1; yi++) {
+							var cellNr = xi * this.pNumY + yi;
+							var first = this.firstCellParticle[cellNr];
+							var last = first + this.numCellParticles[cellNr];
+
+							for (var j = first; j < last; j++) {
+								var id = this.cellParticleIds[j];
+								if (id == i) continue;
+
+								var qx = this.particlePos[2 * id];
+								var qy = this.particlePos[2 * id + 1];
+
+								var dx = qx - px;
+								var dy = qy - py;
+								var d2 = dx * dx + dy * dy;
+
+								if (d2 > minDist2 || d2 == 0.0) continue;
+
+								var d = Math.sqrt(d2);
+								var s = 0.5 * (minDist - d) / d;
+								dx *= s;
+								dy *= s;
+								this.particlePos[2 * i] -= dx;
+								this.particlePos[2 * i + 1] -= dy;
+								this.particlePos[2 * id] += dx;
+								this.particlePos[2 * id + 1] += dy;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		handleParticleCollisions(obstacleX, obstacleY, obstacleRadius) {
+			var h = 1.0 / this.fInvSpacing;
+			var r = this.particleRadius;
+			var or = obstacleRadius;
+			var minDist = obstacleRadius + r;
+			var minDist2 = minDist * minDist;
+
+			for (var i = 0; i < this.numParticles; i++) {
+				var x = this.particlePos[2 * i];
+				var y = this.particlePos[2 * i + 1];
+
+				// Solo aplicar colisión con obstáculo si no estamos en modo gravedad
+				if (!scene.gravityMode) {
+					var dx = x - obstacleX;
+					var dy = y - obstacleY;
+					var d2 = dx * dx + dy * dy;
+
+					// Colisión con obstáculo
+					if (d2 < minDist2) {
+						var d = Math.sqrt(d2);
+						var s = (minDist - d) / d;
+						this.particlePos[2 * i] = obstacleX + dx * (1.0 + s);
+						this.particlePos[2 * i + 1] = obstacleY + dy * (1.0 + s);
+					}
+				}
+
+				// Colisiones con paredes del contenedor - usar la función de validación
+				if (!isValidParticlePosition(x, y, this)) {
+					// Mover la partícula hacia una posición válida
+					var attempts = 0;
+					while (!isValidParticlePosition(x, y, this) && attempts < 10) {
+						// Empujar hacia el centro del contenedor
+						var centerX = this.fNumX * h * 0.5;
+						var centerY = this.fNumY * h * 0.5;
+						var dirX = centerX - x;
+						var dirY = centerY - y;
+						var len = Math.sqrt(dirX * dirX + dirY * dirY);
+						if (len > 0) {
+							dirX /= len;
+							dirY /= len;
+							x += dirX * h * 0.1;
+							y += dirY * h * 0.1;
+						}
+						attempts++;
+					}
+					this.particlePos[2 * i] = x;
+					this.particlePos[2 * i + 1] = y;
+					this.particleVel[2 * i] *= 0.5;
+					this.particleVel[2 * i + 1] *= 0.5;
+				}
+			}
+		}
+
+		updateParticleDensity() {
+			var n = this.fNumY;
+			var h = this.h;
+			var h1 = this.fInvSpacing;
+			var h2 = 0.5 * h;
+
+			this.particleDensity.fill(0.0);
+
+			for (var i = 0; i < this.numParticles; i++) {
+				var x = this.particlePos[2 * i];
+				var y = this.particlePos[2 * i + 1];
+
+				x = clamp(x, h, (this.fNumX - 1) * h);
+				y = clamp(y, h, (this.fNumY - 1) * h);
+
+				var x0 = Math.floor((x - h2) * h1);
+				var tx = ((x - h2) - x0 * h) * h1;
+				var x1 = Math.min(x0 + 1, this.fNumX - 2);
+
+				var y0 = Math.floor((y - h2) * h1);
+				var ty = ((y - h2) - y0 * h) * h1;
+				var y1 = Math.min(y0 + 1, this.fNumY - 2);
+
+				var sx = 1.0 - tx;
+				var sy = 1.0 - ty;
+
+				if (x0 < this.fNumX && y0 < this.fNumY) this.particleDensity[x0 * n + y0] += sx * sy;
+				if (x1 < this.fNumX && y0 < this.fNumY) this.particleDensity[x1 * n + y0] += tx * sy;
+				if (x1 < this.fNumX && y1 < this.fNumY) this.particleDensity[x1 * n + y1] += tx * ty;
+				if (x0 < this.fNumX && y1 < this.fNumY) this.particleDensity[x0 * n + y1] += sx * ty;
+			}
+
+			if (this.particleRestDensity == 0.0) {
+				var sum = 0.0;
+				var numFluidCells = 0;
+
+				for (var i = 0; i < this.fNumCells; i++) {
+					if (this.cellType[i] == FLUID_CELL) {
+						sum += this.particleDensity[i];
+						numFluidCells++;
+					}
+				}
+
+				if (numFluidCells > 0)
+					this.particleRestDensity = sum / numFluidCells;
+			}
+		}
+
+		transferVelocities(toGrid, flipRatio) {
+			var n = this.fNumY;
+			var h = this.h;
+			var h1 = this.fInvSpacing;
+			var h2 = 0.5 * h;
+
+			if (toGrid) {
+				this.prevU.set(this.u);
+				this.prevV.set(this.v);
+
+				this.du.fill(0.0);
+				this.dv.fill(0.0);
+				this.u.fill(0.0);
+				this.v.fill(0.0);
+
+				for (var i = 0; i < this.fNumCells; i++) {
+					this.cellType[i] = this.s[i] == 0.0 ? SOLID_CELL : AIR_CELL;
+				}
+
+				for (var i = 0; i < this.numParticles; i++) {
+					var x = this.particlePos[2 * i];
+					var y = this.particlePos[2 * i + 1];
+					var xi = clamp(Math.floor(x * h1), 0, this.fNumX - 1);
+					var yi = clamp(Math.floor(y * h1), 0, this.fNumY - 1);
+					var cellNr = xi * n + yi;
+
+					if (this.cellType[cellNr] == AIR_CELL)
+						this.cellType[cellNr] = FLUID_CELL;
+				}
+			}
+
+			for (var component = 0; component < 2; component++) {
+				var dx = component == 0 ? 0.0 : h2;
+				var dy = component == 0 ? h2 : 0.0;
+
+				var f = component == 0 ? this.u : this.v;
+				var prevF = component == 0 ? this.prevU : this.prevV;
+				var d = component == 0 ? this.du : this.dv;
+
+				for (var i = 0; i < this.numParticles; i++) {
+					var x = this.particlePos[2 * i];
+					var y = this.particlePos[2 * i + 1];
+
+					x = clamp(x, h, (this.fNumX - 1) * h);
+					y = clamp(y, h, (this.fNumY - 1) * h);
+
+					var x0 = Math.min(Math.floor((x - dx) * h1), this.fNumX - 2);
+					var tx = ((x - dx) - x0 * h) * h1;
+					var x1 = Math.min(x0 + 1, this.fNumX - 2);
+
+					var y0 = Math.min(Math.floor((y - dy) * h1), this.fNumY - 2);
+					var ty = ((y - dy) - y0 * h) * h1;
+					var y1 = Math.min(y0 + 1, this.fNumY - 2);
+
+					var sx = 1.0 - tx;
+					var sy = 1.0 - ty;
+
+					var d0 = sx * sy;
+					var d1 = tx * sy;
+					var d2 = tx * ty;
+					var d3 = sx * ty;
+
+					var nr0 = x0 * n + y0;
+					var nr1 = x1 * n + y0;
+					var nr2 = x1 * n + y1;
+					var nr3 = x0 * n + y1;
+
+					if (toGrid) {
+						var pv = this.particleVel[2 * i + component];
+						f[nr0] += pv * d0; d[nr0] += d0;
+						f[nr1] += pv * d1; d[nr1] += d1;
+						f[nr2] += pv * d2; d[nr2] += d2;
+						f[nr3] += pv * d3; d[nr3] += d3;
+					}
+					else {
+						var offset = component == 0 ? n : 1;
+						var valid0 = this.cellType[nr0] != AIR_CELL || this.cellType[nr0 - offset] != AIR_CELL ? 1.0 : 0.0;
+						var valid1 = this.cellType[nr1] != AIR_CELL || this.cellType[nr1 - offset] != AIR_CELL ? 1.0 : 0.0;
+						var valid2 = this.cellType[nr2] != AIR_CELL || this.cellType[nr2 - offset] != AIR_CELL ? 1.0 : 0.0;
+						var valid3 = this.cellType[nr3] != AIR_CELL || this.cellType[nr3 - offset] != AIR_CELL ? 1.0 : 0.0;
+
+						var v = this.particleVel[2 * i + component];
+						var d = valid0 * d0 + valid1 * d1 + valid2 * d2 + valid3 * d3;
+
+						if (d > 0.0) {
+							var picV = (valid0 * d0 * f[nr0] + valid1 * d1 * f[nr1] + valid2 * d2 * f[nr2] + valid3 * d3 * f[nr3]) / d;
+							var corr = (valid0 * d0 * (f[nr0] - prevF[nr0]) + valid1 * d1 * (f[nr1] - prevF[nr1]) + 
+									   valid2 * d2 * (f[nr2] - prevF[nr2]) + valid3 * d3 * (f[nr3] - prevF[nr3])) / d;
+							var flipV = v + corr;
+
+							this.particleVel[2 * i + component] = (1.0 - flipRatio) * picV + flipRatio * flipV;
+						}
+					}
+				}
+
+				if (toGrid) {
+					for (var i = 0; i < this.fNumCells; i++) {
+						if (d[i] > 0.0)
+							f[i] /= d[i];
+					}
+				}
+			}
+		}
+
+		solveIncompressibility(numIters, dt, overRelaxation, compensateDrift = true) {
+			this.p.fill(0.0);
+			this.prevU.set(this.u);
+			this.prevV.set(this.v);
+
+			var n = this.fNumY;
+			var cp = this.density * this.h / dt;
+
+			for (var iter = 0; iter < numIters; iter++) {
+				for (var i = 1; i < this.fNumX - 1; i++) {
+					for (var j = 1; j < this.fNumY - 1; j++) {
+						if (this.cellType[i * n + j] != FLUID_CELL)
+							continue;
+
+						var center = i * n + j;
+						var left = (i - 1) * n + j;
+						var right = (i + 1) * n + j;
+						var bottom = i * n + j - 1;
+						var top = i * n + j + 1;
+
+						var s = this.s[center];
+						var sx0 = this.s[left];
+						var sx1 = this.s[right];
+						var sy0 = this.s[bottom];
+						var sy1 = this.s[top];
+						var s = sx0 + sx1 + sy0 + sy1;
+						if (s == 0.0)
+							continue;
+
+						var div = this.u[right] - this.u[center] + this.v[top] - this.v[center];
+
+						if (this.particleRestDensity > 0.0 && compensateDrift) {
+							var k = 1.0;
+							var compression = this.particleDensity[center] - this.particleRestDensity;
+							if (compression > 0.0)
+								div = div - k * compression;
+						}
+
+						var p = -div / s;
+						p *= overRelaxation;
+						this.p[center] += cp * p;
+
+						this.u[center] -= sx0 * p;
+						this.u[right] += sx1 * p;
+						this.v[center] -= sy0 * p;
+						this.v[top] += sy1 * p;
+					}
+				}
+			}
+		}
+
+		simulate(dt, gravityX, gravityY, flipRatio, numPressureIters, numParticleIters, overRelaxation, compensateDrift, separateParticles, obstacleX, obstacleY, obstacleRadius) {
+			var numSubSteps = 1;
+			var sdt = dt / numSubSteps;
+
+			for (var step = 0; step < numSubSteps; step++) {
+				this.integrateParticles(sdt, gravityX, gravityY);
+				if (separateParticles)
+					this.pushParticlesApart(numParticleIters);
+				this.handleParticleCollisions(obstacleX, obstacleY, obstacleRadius);
+				this.transferVelocities(true);
+				this.updateParticleDensity();
+				this.solveIncompressibility(numPressureIters, sdt, overRelaxation, compensateDrift);
+				this.transferVelocities(false, flipRatio);
+			}
+		}
+	}
+
+	// ----------------- Scene Setup ------------------------------
+
+	var scene = {
+		gravity: -3,
+		gravityX: 0.0,
+		gravityY: -3,
+		gravityMode: true,
+		accelerometerMode: false,
+		accelerometerSupported: false,
+		dt: 1.0 / 60.0,
+		flipRatio: 0.9,
+		viscosity: 0.0,
+		numPressureIters: 100,
+		numParticleIters: 2,
+		frameNr: 0,
+		overRelaxation: 1.9,
+		compensateDrift: true,
+		separateParticles: true,
+		obstacleX: 0.0,
+		obstacleY: 0.0,
+		obstacleRadius: 0.15,
+		paused: false,
+		showObstacle: true,
+		obstacleVelX: 0.0,
+		obstacleVelY: 0.0,
+		showParticles: false,
+		showGrid: true,
+		displayMode: 'grid', // 'particles', 'grid', 'both'
+		containerShape: 'circular', // 'rectangular', 'circular', 'heart', 'star', 'diamond'
+		fluid: null,
+		gridResolution: 50,
+		originalContainer: null // Para guardar la configuración original del contenedor
+	};
+
+	function setupScene(gridRes = 50) {
+		scene.gridResolution = gridRes;
+		scene.obstacleRadius = 0.15;
+		scene.overRelaxation = advancedSettings.overRelaxation;
+		scene.numParticleIters = 2;
+		scene.compensateDrift = advancedSettings.compensateDrift;
+		scene.separateParticles = advancedSettings.separateParticles;
+
+		// Use advanced settings
+		scene.numPressureIters = advancedSettings.pressureIterations;
+		scene.dt = advancedSettings.timeStep;
+
+		var tankHeight = 1.0 * simHeight;
+		var tankWidth = 1.0 * simWidth;
+		var h = tankHeight / gridRes;
+		var density = advancedSettings.density;
+
+		var relWaterHeight = advancedSettings.waterHeight;
+		var relWaterWidth = advancedSettings.waterWidth;
+
+		var r = advancedSettings.particleRadiusFactor * h;
+		var dx = 2.0 * r;
+		var dy = Math.sqrt(3.0) / 2.0 * dx;
+
+
+		var numX = Math.max(1, Math.floor((relWaterWidth * tankWidth - 2.0 * h - 2.0 * r) / dx));
+		var numY = Math.max(1, Math.floor((relWaterHeight * tankHeight - 2.0 * h - 2.0 * r) / dy));
+		var maxParticles = Math.max(4, numX * numY); // Mínimo 4 partículas
+
+		if (gridRes < 20) {
+			maxParticles = Math.max(10, maxParticles); // Asegurar un mínimo de 10 partículas
+		}
+
+		// Create fluid
+		scene.fluid = new FlipFluid(density, tankWidth, tankHeight, h, r, maxParticles);
+		var f = scene.fluid;
+
+		// Create particles in a more appropriate initial distribution
+		var particlesCreated = 0;
+		
+		// Para grids muy pequeños, colocar partículas manualmente
+		if (gridRes <= 10) {
+			// Distribución manual para grids muy pequeños
+			var centerX = tankWidth * 0.5;
+			var centerY = tankHeight * 0.3; // Más arriba
+			var spacing = Math.max(dx, dy);
+			
+			var positions = [
+				[centerX, centerY],
+				[centerX - spacing, centerY],
+				[centerX + spacing, centerY],
+				[centerX, centerY + spacing],
+				[centerX - spacing * 0.5, centerY + spacing],
+				[centerX + spacing * 0.5, centerY + spacing]
+			];
+			
+			for (var p = 0; p < Math.min(positions.length, maxParticles); p++) {
+				var x = positions[p][0];
+				var y = positions[p][1];
+				
+				if (isValidParticlePosition(x, y, f)) {
+					f.particlePos[2 * particlesCreated] = x;
+					f.particlePos[2 * particlesCreated + 1] = y;
+					particlesCreated++;
+				}
+			}
+		} else {
+			// Distribución normal para grids más grandes
+			for (var i = 0; i < numX && particlesCreated < maxParticles; i++) {
+				for (var j = 0; j < numY && particlesCreated < maxParticles; j++) {
+					var x = h + r + dx * i + (j % 2 == 0 ? 0.0 : r);
+					var y = h + r + dy * j;
+					
+					// Check if particle position is valid for current container shape
+					if (isValidParticlePosition(x, y, f)) {
+						f.particlePos[2 * particlesCreated] = x;
+						f.particlePos[2 * particlesCreated + 1] = y;
+						particlesCreated++;
+					}
+				}
+			}
+		}
+		
+		f.numParticles = Math.max(1, particlesCreated); // Asegurar al menos 1 partícula
+
+		// Setup grid cells for tank
+		setupContainer(f, gridRes);
+
+		setObstacle(3.0, 2.0, true);
+	}
+
+	function setupContainer(f, gridRes) {
+		var n = f.fNumY;
+		var centerX = f.fNumX * 0.5;
+		var centerY = f.fNumY * 0.5;
+		var radius = Math.min(f.fNumX, f.fNumY) * 0.45;
+
+		for (var i = 0; i < f.fNumX; i++) {
+			for (var j = 0; j < f.fNumY; j++) {
+				var solid = false;
+				var centerX = Math.floor(f.fNumX / 2);
+				var centerY = Math.floor(f.fNumY / 2);
+				var x = i - centerX;
+				var y = j - centerY;
+				var radiusInCells = Math.floor(Math.min(f.fNumX, f.fNumY) * 0.45);
+				
+				switch(scene.containerShape) {
+					case 'rectangular':
+						// Rectangular container - aligned to grid with all walls
+						solid = i == 0 || i == f.fNumX - 1 || j == 0 || j == f.fNumY - 1;
+						break;
+						
+					case 'square':
+						// Square container - aligned to grid cells with consistent sizing
+						// Make the square size based on the grid resolution for consistency
+						var targetSquareSize = Math.floor(scene.gridResolution * advancedSettings.squareSizeFactor);
+						var maxSquareSize = Math.min(f.fNumX - 2, f.fNumY - 2); // Leave at least 1 cell border
+						var squareSizeInCells = Math.min(targetSquareSize, maxSquareSize);
+						
+						// Ensure odd/even consistency for perfect centering
+						if (squareSizeInCells % 2 !== (f.fNumX % 2)) squareSizeInCells--;
+						
+						var startX = Math.floor((f.fNumX - squareSizeInCells) / 2);
+						var endX = startX + squareSizeInCells - 1;
+						var startY = Math.floor((f.fNumY - squareSizeInCells) / 2);
+						var endY = startY + squareSizeInCells - 1;
+						solid = i < startX || i > endX || j < startY || j > endY;
+						break;
+						
+					case 'circular':
+						// Circular container - aligned to grid cells
+						var distInCells = Math.sqrt(x * x + y * y);
+						solid = distInCells > radiusInCells || j == 0;
+						break;
+						
+					case 'heart':
+						// Heart shape - aligned to grid cells
+						var scale = radiusInCells * 0.6;
+						var heartX = x / scale;
+						var heartY = (y + radiusInCells * 0.3) / scale;
+						var heartEq = Math.pow(heartX * heartX + heartY * heartY - 1, 3) - heartX * heartX * heartY * heartY * heartY;
+						solid = heartEq > 0 || j == 0;
+						break;
+						
+					case 'star':
+						// 5-pointed star - aligned to grid cells
+						var angle = Math.atan2(y, x);
+						var distInCells = Math.sqrt(x * x + y * y);
+						var starRadiusInCells = radiusInCells * (0.6 + 0.4 * Math.cos(5 * angle));
+						solid = distInCells > starRadiusInCells || j == 0;
+						break;
+						
+					case 'diamond':
+						// Diamond shape - aligned to grid cells
+						var diamondDist = Math.abs(x) / (radiusInCells * 0.7) + Math.abs(y) / (radiusInCells * 0.7);
+						solid = diamondDist > 1.0 || j == 0;
+						break;
+				}
+				
+				f.s[i * n + j] = solid ? 0.0 : 1.0;
+			}
+		}
+		
+		// Guardar copia de la configuración original del contenedor
+		scene.originalContainer = new Float32Array(f.s);
+	}
+
+	function isValidParticlePosition(x, y, f) {
+		// Convert physical coordinates to grid cell coordinates
+		var i = Math.floor(x / f.h);
+		var j = Math.floor(y / f.h);
+		
+		// Check bounds
+		if (i < 0 || i >= f.fNumX || j < 0 || j >= f.fNumY) return false;
+		
+		var centerX = Math.floor(f.fNumX / 2);
+		var centerY = Math.floor(f.fNumY / 2);
+		var gridX = i - centerX;
+		var gridY = j - centerY;
+		var radiusInCells = Math.floor(Math.min(f.fNumX, f.fNumY) * 0.45);
+		
+		switch(scene.containerShape) {
+			case 'rectangular':
+				// Rectangular bounds - aligned to grid with all walls
+				return i > 0 && i < f.fNumX - 1 && j > 0 && j < f.fNumY - 1;
+				
+			case 'square':
+				// Square bounds - aligned to grid cells with consistent sizing
+				var targetSquareSize = Math.floor(scene.gridResolution * advancedSettings.squareSizeFactor);
+				var maxSquareSize = Math.min(f.fNumX - 2, f.fNumY - 2);
+				var squareSizeInCells = Math.min(targetSquareSize, maxSquareSize);
+				if (squareSizeInCells % 2 !== (f.fNumX % 2)) squareSizeInCells--;
+				var startX = Math.floor((f.fNumX - squareSizeInCells) / 2);
+				var endX = startX + squareSizeInCells - 1;
+				var startY = Math.floor((f.fNumY - squareSizeInCells) / 2);
+				var endY = startY + squareSizeInCells - 1;
+				return i >= startX && i <= endX && j >= startY && j <= endY;
+				
+			case 'circular':
+				// Circular bounds - aligned to grid cells
+				var distInCells = Math.sqrt(gridX * gridX + gridY * gridY);
+				return distInCells <= radiusInCells && j > 0;
+				
+			case 'heart':
+				// Heart shape bounds - aligned to grid cells
+				var scale = radiusInCells * 0.6;
+				var heartX = gridX / scale;
+				var heartY = (gridY + radiusInCells * 0.3) / scale;
+				var heartEq = Math.pow(heartX * heartX + heartY * heartY - 1, 3) - heartX * heartX * heartY * heartY * heartY;
+				return heartEq <= 0 && j > 0;
+				
+			case 'star':
+				// 5-pointed star bounds - aligned to grid cells
+				var angle = Math.atan2(gridY, gridX);
+				var distInCells = Math.sqrt(gridX * gridX + gridY * gridY);
+				var starRadiusInCells = radiusInCells * (0.6 + 0.4 * Math.cos(5 * angle));
+				return distInCells <= starRadiusInCells && j > 0;
+				
+			case 'diamond':
+				// Diamond bounds - aligned to grid cells
+				var diamondDist = Math.abs(gridX) / (radiusInCells * 0.7) + Math.abs(gridY) / (radiusInCells * 0.7);
+				return diamondDist <= 1.0 && j > 0;
+		}
+		return false;
+	}
+
+	// ----------------- Drawing ------------------------------
+
+	const pointVertexShader = `
+		attribute vec2 attrPosition;
+		uniform vec2 domainSize;
+		uniform float pointSize;
+
+		void main() {
+			vec4 screenTransform = vec4(2.0 / domainSize.x, 2.0 / domainSize.y, -1.0, -1.0);
+			gl_Position = vec4(attrPosition * screenTransform.xy + screenTransform.zw, 0.0, 1.0);
+			gl_PointSize = pointSize;
+		}
+	`;
+
+	const pointFragmentShader = `
+		precision mediump float;
+		uniform vec3 color;
+		uniform float drawSquare;
+
+		void main() {
+			if (drawSquare > 0.5) {
+				// Draw square (grid mode)
+				gl_FragColor = vec4(color, 1.0);
+			} else {
+				// Draw circle (particle mode)
+				float dist = length(gl_PointCoord - vec2(0.5));
+				if (dist > 0.5) discard;
+				gl_FragColor = vec4(color, 1.0);
+			}
+		}
+	`;
+
+	const meshVertexShader = `
+		attribute vec2 attrPosition;
+		uniform vec2 domainSize;
+		uniform vec3 color;
+		uniform vec2 translation;
+		uniform float scale;
+
+		varying vec3 fragColor;
+
+		void main() {
+			vec2 v = translation + attrPosition * scale;
+			vec4 screenTransform = vec4(2.0 / domainSize.x, 2.0 / domainSize.y, -1.0, -1.0);
+			gl_Position = vec4(v * screenTransform.xy + screenTransform.zw, 0.0, 1.0);
+			fragColor = color;
+		}
+	`;
+
+	const meshFragmentShader = `
+		precision mediump float;
+		varying vec3 fragColor;
+
+		void main() {
+			gl_FragColor = vec4(fragColor, 1.0);
+		}
+	`;
+
+	function createShader(gl, vsSource, fsSource) {
+		const vsShader = gl.createShader(gl.VERTEX_SHADER);
+		gl.shaderSource(vsShader, vsSource);
+		gl.compileShader(vsShader);
+		if (!gl.getShaderParameter(vsShader, gl.COMPILE_STATUS))
+			console.log("vertex shader compile error: " + gl.getShaderInfoLog(vsShader));
+
+		const fsShader = gl.createShader(gl.FRAGMENT_SHADER);
+		gl.shaderSource(fsShader, fsSource);
+		gl.compileShader(fsShader);
+		if (!gl.getShaderParameter(fsShader, gl.COMPILE_STATUS))
+			console.log("fragment shader compile error: " + gl.getShaderInfoLog(fsShader));
+
+		var shader = gl.createProgram();
+		gl.attachShader(shader, vsShader);
+		gl.attachShader(shader, fsShader);
+		gl.linkProgram(shader);
+
+		return shader;
+	}
+
+	var pointShader = null;
+	var meshShader = null;
+	var particleBuffer = null;
+	var gridVertBuffer = null;
+	var gridColorBuffer = null;
+	var diskVertBuffer = null;
+	var diskIdBuffer = null;
+
+	function draw() {
+		gl.clearColor(0.9, 0.9, 0.9, 1.0);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+		// Prepare shaders
+		if (pointShader == null)
+			pointShader = createShader(gl, pointVertexShader, pointFragmentShader);
+		if (meshShader == null)
+			meshShader = createShader(gl, meshVertexShader, meshFragmentShader);
+
+		// Draw grid cells
+		if (scene.showGrid || scene.displayMode === 'grid' || scene.displayMode === 'both') {
+			if (gridVertBuffer == null) {
+				var f = scene.fluid;
+				gridVertBuffer = gl.createBuffer();
+				var cellCenters = new Float32Array(2 * f.fNumCells);
+				var p = 0;
+
+				for (var i = 0; i < f.fNumX; i++) {
+					for (var j = 0; j < f.fNumY; j++) {
+						cellCenters[2 * p] = (i + 0.5) * f.h;
+						cellCenters[2 * p + 1] = (j + 0.5) * f.h;
+						p++;
+					}
+				}
+				gl.bindBuffer(gl.ARRAY_BUFFER, gridVertBuffer);
+				gl.bufferData(gl.ARRAY_BUFFER, cellCenters, gl.STATIC_DRAW);
+			}
+
+			var pointSize = advancedSettings.gridVisualSize * scene.fluid.h / simWidth * canvas.width;
+
+			gl.useProgram(pointShader);
+			gl.uniform2f(gl.getUniformLocation(pointShader, 'domainSize'), simWidth, simHeight);
+			gl.uniform1f(gl.getUniformLocation(pointShader, 'pointSize'), pointSize);
+			gl.uniform1f(gl.getUniformLocation(pointShader, 'drawSquare'), 1.0); // Draw squares for grid
+			
+			// Color cells based on type
+			var f = scene.fluid;
+			var cellColors = new Float32Array(3 * f.fNumCells);
+			for (var i = 0; i < f.fNumCells; i++) {
+				if (f.cellType[i] == FLUID_CELL) {
+					cellColors[3 * i] = 0.0;      // R
+					cellColors[3 * i + 1] = 0.5;  // G
+					cellColors[3 * i + 2] = 1.0;  // B (blue for fluid)
+				} else if (f.cellType[i] == SOLID_CELL) {
+					cellColors[3 * i] = 0.2;      // R
+					cellColors[3 * i + 1] = 0.2;  // G  
+					cellColors[3 * i + 2] = 0.2;  // B (dark gray for solid)
+				} else {
+					cellColors[3 * i] = 0.9;      // R
+					cellColors[3 * i + 1] = 0.9;  // G
+					cellColors[3 * i + 2] = 0.9;  // B (light gray for air)
+				}
+			}
+
+			// Create color buffer if it doesn't exist
+			if (gridColorBuffer == null) {
+				gridColorBuffer = gl.createBuffer();
+			}
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, gridVertBuffer);
+			var posLoc = gl.getAttribLocation(pointShader, 'attrPosition');
+			gl.enableVertexAttribArray(posLoc);
+			gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+			// Draw each cell type separately with its color
+			for (var cellType = 0; cellType < 3; cellType++) {
+				var color = [0.9, 0.9, 0.9]; // default air color
+				if (cellType == FLUID_CELL) {
+					color = [0.0, 0.5, 1.0]; // blue for fluid
+				} else if (cellType == SOLID_CELL) {
+					color = [0.2, 0.2, 0.2]; // dark gray for solid
+					// Skip drawing solid cells in grid mode to show only interior
+					if (scene.displayMode === 'grid') continue;
+				}
+
+				gl.uniform3f(gl.getUniformLocation(pointShader, 'color'), color[0], color[1], color[2]);
+
+				// Count and draw cells of this type
+				var cellsOfType = [];
+				for (var i = 0; i < f.fNumCells; i++) {
+					// In grid-only mode, only show non-solid cells (interior of container)
+					if (scene.displayMode === 'grid' && f.cellType[i] == SOLID_CELL) continue;
+					if (f.cellType[i] == cellType) {
+						cellsOfType.push(i);
+					}
+				}
+
+				if (cellsOfType.length > 0) {
+					// Create vertex data for this cell type
+					var typeVertices = new Float32Array(2 * cellsOfType.length);
+					for (var k = 0; k < cellsOfType.length; k++) {
+						var cellIdx = cellsOfType[k];
+						var i = Math.floor(cellIdx / f.fNumY);
+						var j = cellIdx % f.fNumY;
+						typeVertices[2 * k] = (i + 0.5) * f.h;
+						typeVertices[2 * k + 1] = (j + 0.5) * f.h;
+					}
+
+					var typeBuffer = gl.createBuffer();
+					gl.bindBuffer(gl.ARRAY_BUFFER, typeBuffer);
+					gl.bufferData(gl.ARRAY_BUFFER, typeVertices, gl.DYNAMIC_DRAW);
+					gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+					gl.drawArrays(gl.POINTS, 0, cellsOfType.length);
+					gl.deleteBuffer(typeBuffer);
+				}
+			}
+
+			gl.disableVertexAttribArray(posLoc);
+		}
+
+		// Draw particles
+		if (scene.showParticles && (scene.displayMode === 'particles' || scene.displayMode === 'both')) {
+			if (particleBuffer == null) {
+				particleBuffer = gl.createBuffer();
+			}
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, scene.fluid.particlePos, gl.DYNAMIC_DRAW);
+
+			var pointSize = advancedSettings.particleVisualSize * scene.fluid.particleRadius / simWidth * canvas.width;
+
+			gl.useProgram(pointShader);
+			gl.uniform2f(gl.getUniformLocation(pointShader, 'domainSize'), simWidth, simHeight);
+			gl.uniform1f(gl.getUniformLocation(pointShader, 'pointSize'), pointSize);
+			gl.uniform1f(gl.getUniformLocation(pointShader, 'drawSquare'), 0.0); // Draw circles for particles
+			gl.uniform3f(gl.getUniformLocation(pointShader, 'color'), 0.0, 0.5, 1.0);
+
+			var posLoc = gl.getAttribLocation(pointShader, 'attrPosition');
+			gl.enableVertexAttribArray(posLoc);
+			gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+			gl.drawArrays(gl.POINTS, 0, scene.fluid.numParticles);
+			gl.disableVertexAttribArray(posLoc);
+		}
+
+		// Draw obstacle
+		if (scene.showObstacle && !scene.gravityMode) {
+			// Prepare disk mesh
+			var numSegs = 50;
+
+			if (diskVertBuffer == null) {
+				var diskVerts = new Float32Array(2 * (numSegs + 1));
+				diskVerts[0] = 0.0;
+				diskVerts[1] = 0.0;
+				for (var i = 0; i < numSegs; i++) {
+					var alpha = 2.0 * Math.PI * i / numSegs;
+					diskVerts[2 * (i + 1)] = Math.cos(alpha);
+					diskVerts[2 * (i + 1) + 1] = Math.sin(alpha);
+				}
+
+				diskVertBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, diskVertBuffer);
+				gl.bufferData(gl.ARRAY_BUFFER, diskVerts, gl.STATIC_DRAW);
+
+				var diskIds = new Uint16Array(3 * numSegs);
+				for (var i = 0; i < numSegs; i++) {
+					diskIds[3 * i] = 0;
+					diskIds[3 * i + 1] = i + 1;
+					diskIds[3 * i + 2] = (i + 1) % numSegs + 1;
+				}
+
+				diskIdBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diskIdBuffer);
+				gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, diskIds, gl.STATIC_DRAW);
+			}
+
+			var diskColor = [1.0, 0.0, 0.0];
+
+			gl.useProgram(meshShader);
+			gl.uniform2f(gl.getUniformLocation(meshShader, 'domainSize'), simWidth, simHeight);
+			gl.uniform3f(gl.getUniformLocation(meshShader, 'color'), diskColor[0], diskColor[1], diskColor[2]);
+			gl.uniform2f(gl.getUniformLocation(meshShader, 'translation'), scene.obstacleX, scene.obstacleY);
+			gl.uniform1f(gl.getUniformLocation(meshShader, 'scale'), scene.obstacleRadius);
+
+			var posLoc = gl.getAttribLocation(meshShader, 'attrPosition');
+			gl.enableVertexAttribArray(posLoc);
+			gl.bindBuffer(gl.ARRAY_BUFFER, diskVertBuffer);
+			gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, diskIdBuffer);
+			gl.drawElements(gl.TRIANGLES, 3 * numSegs, gl.UNSIGNED_SHORT, 0);
+
+			gl.disableVertexAttribArray(posLoc);
+		}
+		
+		// Draw gravity direction indicator
+		if (scene.gravityMode) {
+			drawGravityIndicator();
+		}
+	}
+
+	function drawGravityIndicator() {
+		// Dibujar una flecha en la esquina superior izquierda indicando la dirección de la gravedad
+		var arrowLength = 30; // base length
+		var arrowX = 50; // posición X en la pantalla
+		var arrowY = 50; // posición Y en la pantalla
+		
+		// Calcular la magnitud de la gravedad para ajustar el tamaño de la flecha
+		var gravityMagnitude = Math.sqrt(scene.gravityX * scene.gravityX + scene.gravityY * scene.gravityY);
+		if (gravityMagnitude > 0) {
+			// Escalar la longitud de la flecha basada en la magnitud (máximo 80 pixels)
+			var scaledLength = arrowLength + (gravityMagnitude / 20.0) * 50;
+			scaledLength = Math.min(scaledLength, 80);
+			
+			var dirX = scene.gravityX / gravityMagnitude;
+			var dirY = -scene.gravityY / gravityMagnitude; // Invertir Y para que coincida con coordenadas de pantalla
+			
+			// Crear vértices para la flecha
+			var arrowVerts = new Float32Array([
+				// Línea principal de la flecha
+				arrowX / canvas.width * simWidth, (canvas.height - arrowY) / canvas.height * simHeight,
+				(arrowX + dirX * scaledLength) / canvas.width * simWidth, (canvas.height - (arrowY + dirY * scaledLength)) / canvas.height * simHeight,
+				
+				// Punta de la flecha (triángulo)
+				(arrowX + dirX * scaledLength) / canvas.width * simWidth, (canvas.height - (arrowY + dirY * scaledLength)) / canvas.height * simHeight,
+				(arrowX + dirX * (scaledLength - 10) - dirY * 5) / canvas.width * simWidth, (canvas.height - (arrowY + dirY * (scaledLength - 10) + dirX * 5)) / canvas.height * simHeight,
+				(arrowX + dirX * (scaledLength - 10) + dirY * 5) / canvas.width * simWidth, (canvas.height - (arrowY + dirY * (scaledLength - 10) - dirX * 5)) / canvas.height * simHeight
+			]);
+			
+			gl.useProgram(meshShader);
+			gl.uniform2f(gl.getUniformLocation(meshShader, 'domainSize'), simWidth, simHeight);
+			
+			// Color que varía con la intensidad: de azul (débil) a rojo (fuerte)
+			var intensity = Math.min(gravityMagnitude / 20.0, 1.0);
+			var red = intensity;
+			var blue = 1.0 - intensity;
+			gl.uniform3f(gl.getUniformLocation(meshShader, 'color'), red, 0.0, blue);
+			
+			gl.uniform2f(gl.getUniformLocation(meshShader, 'translation'), 0.0, 0.0);
+			gl.uniform1f(gl.getUniformLocation(meshShader, 'scale'), 1.0);
+
+			var arrowBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, arrowVerts, gl.DYNAMIC_DRAW);
+
+			var posLoc = gl.getAttribLocation(meshShader, 'attrPosition');
+			gl.enableVertexAttribArray(posLoc);
+			gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+			gl.drawArrays(gl.LINES, 0, 2); // Línea principal
+			gl.drawArrays(gl.TRIANGLES, 2, 3); // Punta de la flecha
+
+			gl.disableVertexAttribArray(posLoc);
+			gl.deleteBuffer(arrowBuffer);
+		}
+	}
+
+	function setGravityDirection(clickX, clickY) {
+		// Convertir coordenadas de pantalla a coordenadas del mundo
+		var centerX = simWidth * 0.5;
+		var centerY = simHeight * 0.5;
+		
+		// Calcular vector desde el centro hacia donde se hizo clic
+		var dirX = clickX - centerX;
+		var dirY = clickY - centerY;
+		
+		// La distancia determina la magnitud de la gravedad
+		var distance = Math.sqrt(dirX * dirX + dirY * dirY);
+		var maxDistance = Math.sqrt(simWidth * simWidth + simHeight * simHeight) * 0.5;
+		
+		// Escalar la gravedad basada en la distancia (0 a 20 m/s²)
+		var gravityMagnitude = Math.min(distance / maxDistance * 20.0, 20.0);
+		
+		// Si la distancia es muy pequeña, usar gravedad mínima hacia abajo
+		if (distance < 0.1) {
+			scene.gravityX = 0.0;
+			scene.gravityY = -1.0;
+		} else {
+			// Usar el vector completo (sin normalizar) para que la distancia importe
+			scene.gravityX = dirX / maxDistance * 10.0;
+			scene.gravityY = dirY / maxDistance * 10.0;
+		}
+	}
+
+	function setObstacle(x, y, reset) {
+		scene.obstacleX = x;
+		scene.obstacleY = y;
+		scene.showObstacle = true;
+		
+		if (!reset) {
+			scene.obstacleVelX = (x - scene.obstacleX) / scene.dt;
+			scene.obstacleVelY = (y - scene.obstacleY) / scene.dt;
+		} else {
+			scene.obstacleVelX = 0.0;
+			scene.obstacleVelY = 0.0;
+		}
+	}
+
+	function applyObstacle() {
+		var f = scene.fluid;
+		var n = f.fNumY;
+		
+		// Restaurar la configuración original del contenedor
+		if (scene.originalContainer) {
+			f.s.set(scene.originalContainer);
+		}
+		
+		// Aplicar el obstáculo si está visible
+		if (scene.showObstacle && !scene.gravityMode) {
+			var r = scene.obstacleRadius;
+			var x = scene.obstacleX;
+			var y = scene.obstacleY;
+			var vx = scene.obstacleVelX;
+			var vy = scene.obstacleVelY;
+			
+			for (var i = 1; i < f.fNumX - 2; i++) {
+				for (var j = 1; j < f.fNumY - 2; j++) {
+					// Solo modificar celdas que originalmente eran fluidas
+					if (scene.originalContainer[i * n + j] > 0.0) {
+						var dx = (i + 0.5) * f.h - x;
+						var dy = (j + 0.5) * f.h - y;
+
+						if (dx * dx + dy * dy < r * r) {
+							f.s[i * n + j] = 0.0;
+							f.u[i * n + j] = vx;
+							f.u[(i + 1) * n + j] = vx;
+							f.v[i * n + j] = vy;
+							f.v[i * n + j + 1] = vy;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// ----------------- Accelerometer Support ------------------------------
+
+	function initAccelerometer() {
+		// Comprobar si el dispositivo soporta DeviceMotionEvent
+		if (typeof DeviceMotionEvent !== 'undefined') {
+			// Para iOS 13+ necesitamos pedir permisos
+			if (typeof DeviceMotionEvent.requestPermission === 'function') {
+				DeviceMotionEvent.requestPermission()
+					.then(response => {
+						if (response === 'granted') {
+							scene.accelerometerSupported = true;
+							startAccelerometer();
+						} else {
+							console.log('Permiso de acelerómetro denegado');
+							document.getElementById('accelerometerMode').disabled = true;
+						}
+					})
+					.catch(console.error);
+			} else {
+				// Para otros navegadores/dispositivos
+				scene.accelerometerSupported = true;
+				startAccelerometer();
+			}
+		} else {
+			console.log('Acelerómetro no soportado');
+			document.getElementById('accelerometerMode').disabled = true;
+		}
+	}
+
+	function startAccelerometer() {
+		window.addEventListener('devicemotion', handleMotion, true);
+	}
+
+	function stopAccelerometer() {
+		window.removeEventListener('devicemotion', handleMotion, true);
+	}
+
+	function handleMotion(event) {
+		if (!scene.accelerometerMode) return;
+		
+		// Obtener aceleración incluyendo gravedad
+		var acceleration = event.accelerationIncludingGravity;
+		
+		if (acceleration && acceleration.x !== null && acceleration.y !== null) {
+			// Invertir los ejes para que coincida con la orientación del fluido
+			// -x del acelerómetro -> gravityX del fluido (invertido para corregir derecha/izquierda)
+			// y del acelerómetro -> -gravityY del fluido (invertido porque el eje Y del acelerómetro apunta hacia arriba)
+			
+			// Escalar la aceleración (típicamente está en m/s²)
+			var scale = 1.0; // Ajustar si es necesario
+			scene.gravityX = -acceleration.x * scale; // Invertido para corregir derecha/izquierda
+			scene.gravityY = -acceleration.y * scale; // Invertido para coincidir con el sistema de coordenadas
+			
+			// Limitar la magnitud máxima
+			var maxGravity = 20.0;
+			var magnitude = Math.sqrt(scene.gravityX * scene.gravityX + scene.gravityY * scene.gravityY);
+			if (magnitude > maxGravity) {
+				scene.gravityX = (scene.gravityX / magnitude) * maxGravity;
+				scene.gravityY = (scene.gravityY / magnitude) * maxGravity;
+			}
+		}
+	}
+
+	function toggleAccelerometer() {
+		scene.accelerometerMode = document.getElementById('accelerometerMode').checked;
+		
+		if (scene.accelerometerMode) {
+			// Activar modo acelerómetro
+			scene.gravityMode = true;
+			document.getElementById('gravityMode').checked = true;
+			
+			if (!scene.accelerometerSupported) {
+				initAccelerometer();
+			}
+		} else {
+			// Desactivar modo acelerómetro, volver a gravedad normal
+			scene.gravityX = 0.0;
+			scene.gravityY = -6;
+		}
+	}
+
+	// ----------------- Controls ------------------------------
+
+	function toggleGravityMode() {
+		scene.gravityMode = document.getElementById('gravityMode').checked;
+		
+		if (scene.gravityMode) {
+			// Al activar modo gravedad, restaurar el contenedor original (eliminar obstáculos)
+			if (scene.originalContainer && scene.fluid) {
+				scene.fluid.s.set(scene.originalContainer);
+				// También limpiar las velocidades donde había obstáculos
+				scene.fluid.u.fill(0.0);
+				scene.fluid.v.fill(0.0);
+			}
+		} else {
+			// Resetear gravedad a la dirección predeterminada (hacia abajo)
+			scene.gravityX = 0.0;
+			scene.gravityY = -6;
+		}
+	}
+
+	function changeContainerShape() {
+		var select = document.getElementById('containerShape');
+		scene.containerShape = select.value;
+		
+		// Reset simulation with new container shape
+		resetSimulation();
+	}
+
+	// Advanced Settings Functions
+	function toggleAdvancedPanel() {
+		var panel = document.getElementById('advancedPanel');
+		panel.classList.toggle('open');
+	}
+
+	function updateParticleRadius() {
+		var value = parseFloat(document.getElementById('particleRadiusFactor').value);
+		advancedSettings.particleRadiusFactor = value;
+		document.getElementById('particleRadiusValue').textContent = value.toFixed(2);
+	}
+
+	function updateTimeStep() {
+		var value = parseFloat(document.getElementById('timeStep').value);
+		advancedSettings.timeStep = value;
+		scene.dt = value;
+		document.getElementById('timeStepValue').textContent = value.toFixed(3);
+	}
+
+	function updatePressureIters() {
+		var value = parseInt(document.getElementById('pressureIters').value);
+		advancedSettings.pressureIterations = value;
+		scene.numPressureIters = value;
+		document.getElementById('pressureItersValue').textContent = value;
+	}
+
+	function updateDensity() {
+		var value = parseFloat(document.getElementById('fluidDensity').value);
+		advancedSettings.density = value;
+		document.getElementById('densityValue').textContent = value;
+	}
+
+	function updateFlipRatio() {
+		var value = parseFloat(document.getElementById('flipRatio').value) * 0.1;
+		advancedSettings.flipRatio = value;
+		scene.flipRatio = value;
+		document.getElementById('flipRatioValue').textContent = value.toFixed(1);
+	}
+
+	function updateViscosity() {
+		var value = parseFloat(document.getElementById('viscosity').value);
+		advancedSettings.viscosity = value;
+		scene.viscosity = value;
+		document.getElementById('viscosityValue').textContent = value.toFixed(1);
+	}
+
+	function updateOverRelaxation() {
+		var value = parseFloat(document.getElementById('overRelaxation').value);
+		advancedSettings.overRelaxation = value;
+		scene.overRelaxation = value;
+		document.getElementById('overRelaxationValue').textContent = value.toFixed(1);
+	}
+
+	function updateCompensateDrift() {
+		var checked = document.getElementById('compensateDrift').checked;
+		advancedSettings.compensateDrift = checked;
+		scene.compensateDrift = checked;
+	}
+
+	function updateSeparateParticles() {
+		var checked = document.getElementById('advSeparateParticles').checked;
+		advancedSettings.separateParticles = checked;
+		scene.separateParticles = checked;
+		// Sync with main control
+		document.getElementById('separateParticles').checked = checked;
+	}
+
+	function updateSquareSizeFactor() {
+		var value = parseFloat(document.getElementById('squareSizeFactor').value);
+		advancedSettings.squareSizeFactor = value;
+		document.getElementById('squareSizeFactorValue').textContent = value.toFixed(2);
+	}
+
+	function updateWaterHeight() {
+		var value = parseFloat(document.getElementById('waterHeight').value);
+		advancedSettings.waterHeight = value;
+		document.getElementById('waterHeightValue').textContent = Math.round(value * 100) + '%';
+	}
+
+	function updateWaterWidth() {
+		var value = parseFloat(document.getElementById('waterWidth').value);
+		advancedSettings.waterWidth = value;
+		document.getElementById('waterWidthValue').textContent = Math.round(value * 100) + '%';
+	}
+
+	function updateGridVisualSize() {
+		var value = parseFloat(document.getElementById('gridVisualSize').value);
+		advancedSettings.gridVisualSize = value;
+		document.getElementById('gridVisualValue').textContent = value.toFixed(2);
+	}
+
+	function updateParticleVisualSize() {
+		var value = parseFloat(document.getElementById('particleVisualSize').value);
+		advancedSettings.particleVisualSize = value;
+		document.getElementById('particleVisualValue').textContent = value.toFixed(1);
+	}
+
+	function applyAdvancedSettings() {
+		// Apply settings that require simulation reset
+		resetSimulation();
+	}
+
+	function resetAdvancedSettings() {
+		// Reset to default values
+		advancedSettings = {
+			particleRadiusFactor: 0.3,
+			timeStep: 1.0 / 60.0,
+			pressureIterations: 50,
+			density: 1000.0,
+			overRelaxation: 1.9,
+			compensateDrift: true,
+			separateParticles: true,
+			squareSizeFactor: 0.8,
+			waterHeight: 0.7,
+			waterWidth: 0.5,
+			gridVisualSize: 0.85,
+			particleVisualSize: 2.0,
+			flipRatio: 0.9,
+			viscosity: 0.3
+		};
+		
+		// Update UI elements
+		document.getElementById('particleRadiusFactor').value = advancedSettings.particleRadiusFactor;
+		document.getElementById('timeStep').value = advancedSettings.timeStep;
+		document.getElementById('pressureIters').value = advancedSettings.pressureIterations;
+		document.getElementById('fluidDensity').value = advancedSettings.density;
+		document.getElementById('overRelaxation').value = advancedSettings.overRelaxation;
+		document.getElementById('compensateDrift').checked = advancedSettings.compensateDrift;
+		document.getElementById('advSeparateParticles').checked = advancedSettings.separateParticles;
+		document.getElementById('squareSizeFactor').value = advancedSettings.squareSizeFactor;
+		document.getElementById('waterHeight').value = advancedSettings.waterHeight;
+		document.getElementById('waterWidth').value = advancedSettings.waterWidth;
+		document.getElementById('gridVisualSize').value = advancedSettings.gridVisualSize;
+		document.getElementById('particleVisualSize').value = advancedSettings.particleVisualSize;
+		document.getElementById('advFlipRatio').value = advancedSettings.flipRatio;
+		document.getElementById('advViscosity').value = advancedSettings.viscosity;
+		
+		// Update display values
+		updateParticleRadius();
+		updateTimeStep();
+		updatePressureIters();
+		updateDensity();
+		updateOverRelaxation();
+		updateCompensateDrift();
+		updateSeparateParticles();
+		updateSquareSizeFactor();
+		updateWaterHeight();
+		updateWaterWidth();
+		updateGridVisualSize();
+		updateParticleVisualSize();
+		updateFlipRatio();
+		updateViscosity();
+		
+		// Apply changes
+		applyAdvancedSettings();
+	}
+
+	// Dynamic tooltip positioning for advanced panel
+	function setupAdvancedTooltips() {
+		const advancedPanel = document.getElementById('advancedPanel');
+		const tooltips = advancedPanel.querySelectorAll('.tooltip');
+		
+		tooltips.forEach(tooltip => {
+			tooltip.addEventListener('mouseenter', function(e) {
+				const rect = this.getBoundingClientRect();
+				const tooltipBefore = window.getComputedStyle(this, '::before');
+				
+				// Calculate position relative to viewport
+				const topPosition = rect.top + (rect.height / 2);
+				
+				// Update CSS custom properties for this specific tooltip
+				this.style.setProperty('--tooltip-top', topPosition + 'px');
+			});
+		});
+	}
+
+	function changeDisplayMode() {
+		var select = document.getElementById('displayMode');
+		scene.displayMode = select.value;
+		
+		// Update the checkboxes to reflect the current mode
+		var showParticlesCheckbox = document.getElementById('showParticles');
+		var showGridCheckbox = document.getElementById('showGrid');
+		
+		switch(scene.displayMode) {
+			case 'particles':
+				scene.showParticles = true;
+				scene.showGrid = false;
+				showParticlesCheckbox.checked = true;
+				showGridCheckbox.checked = false;
+				break;
+			case 'grid':
+				scene.showParticles = false;
+				scene.showGrid = true;
+				showParticlesCheckbox.checked = false;
+				showGridCheckbox.checked = true;
+				break;
+			case 'both':
+				scene.showParticles = true;
+				scene.showGrid = true;
+				showParticlesCheckbox.checked = true;
+				showGridCheckbox.checked = true;
+				break;
+		}
+	}
+
+	function updateGridSize() {
+		var slider = document.getElementById('gridSize');
+		var value = parseInt(slider.value);
+		document.getElementById('gridSizeValue').textContent = value;
+		
+		// Cancelar timeout anterior si existe
+		if (window.gridSizeTimeout) {
+			clearTimeout(window.gridSizeTimeout);
+		}
+		
+		// Esperar 300ms después de que el usuario pare de deslizar para actualizar la simulación
+		window.gridSizeTimeout = setTimeout(() => {
+			// Solo actualizar simulación si el valor realmente cambió
+			if (scene.gridResolution !== value) {
+				resetSimulation();
+			}
+		}, 300);
+		
+		// Medir RAM inmediatamente si hay simulación activa (sin recrear)
+		if (scene.fluid && scene.gridResolution === value) {
+			updateRealRAMUsage();
+		}
+	}
+
+	function measureArrayMemory(array, name) {
+		if (!array) return { name: name, size: 0, type: 'null' };
+		
+		var elementSize = 4; // Default para Float32Array/Int32Array
+		if (array instanceof Uint8Array) elementSize = 1;
+		if (array instanceof Int16Array || array instanceof Uint16Array) elementSize = 2;
+		
+		return {
+			name: name,
+			elements: array.length,
+			elementSize: elementSize,
+			totalBytes: array.length * elementSize,
+			totalKB: (array.length * elementSize / 1024).toFixed(2),
+			type: array.constructor.name
+		};
+	}
+
+	function updateRealRAMUsage() {
+		if (!scene.fluid) return;
+		
+		var f = scene.fluid;
+		var measurements = [];
+		
+		// Medir arrays del grid
+		measurements.push(measureArrayMemory(f.u, 'Velocity U'));
+		measurements.push(measureArrayMemory(f.v, 'Velocity V'));
+		measurements.push(measureArrayMemory(f.du, 'Delta U'));
+		measurements.push(measureArrayMemory(f.dv, 'Delta V'));
+		measurements.push(measureArrayMemory(f.prevU, 'Previous U'));
+		measurements.push(measureArrayMemory(f.prevV, 'Previous V'));
+		measurements.push(measureArrayMemory(f.p, 'Pressure'));
+		measurements.push(measureArrayMemory(f.s, 'Solid/Fluid'));
+		measurements.push(measureArrayMemory(f.cellType, 'Cell Types'));
+		
+		// Medir arrays de partículas
+		measurements.push(measureArrayMemory(f.particlePos, 'Particle Positions'));
+		measurements.push(measureArrayMemory(f.particleVel, 'Particle Velocities'));
+		measurements.push(measureArrayMemory(f.particleDensity, 'Particle Density'));
+		
+		// Medir arrays de tracking
+		measurements.push(measureArrayMemory(f.numCellParticles, 'Particles per Cell'));
+		measurements.push(measureArrayMemory(f.firstCellParticle, 'First Cell Particle'));
+		measurements.push(measureArrayMemory(f.cellParticleIds, 'Particle IDs'));
+		
+		// Calcular totales
+		var totalBytes = measurements.reduce((sum, m) => sum + m.totalBytes, 0);
+		var totalKB = totalBytes / 1024;
+		
+		// Obtener información del navegador si está disponible
+		var browserMemory = '';
+		if (performance.memory) {
+			var used = performance.memory.usedJSHeapSize / 1024 / 1024;
+			var total = performance.memory.totalJSHeapSize / 1024 / 1024;
+			var limit = performance.memory.jsHeapSizeLimit / 1024 / 1024;
+			browserMemory = `
+				<strong>Browser Memory (Chrome only):</strong><br>
+				• Used: ${used.toFixed(1)} MB | Total: ${total.toFixed(1)} MB | Limit: ${limit.toFixed(1)} MB<br>
+			`;
+		}
+		
+		// Preparar desglose detallado
+		var detailedBreakdown = measurements
+			.filter(m => m.totalBytes > 0)
+			.sort((a, b) => b.totalBytes - a.totalBytes)
+			.map(m => `• ${m.name}: ${m.elements} × ${m.elementSize}B = ${m.totalKB}KB (${m.type})`)
+			.join('<br>');
+		
+		// Mostrar RAM compacto
+		var ramDisplay = document.getElementById('realRamInfo');
+		if (!ramDisplay) {
+			ramDisplay = document.createElement('div');
+			ramDisplay.id = 'realRamInfo';
+			ramDisplay.style.cssText = 'margin-top: 10px; padding: 10px; background: #e8f5e8; border-radius: 5px; font-family: monospace; font-size: 14px; border-left: 4px solid #4CAF50; cursor: pointer;';
+			ramDisplay.title = 'Click to expand/collapse details';
+			document.querySelector('.controls').appendChild(ramDisplay);
+		}
+		
+		// HTML principal (siempre visible)
+		var mainHTML = `
+			<strong>🔍 RAM Usage: ${totalKB.toFixed(2)} KB</strong> 
+			<span style="font-size: 12px; color: #666;">[Grid: ${f.fNumX}×${f.fNumY}, Particles: ${f.numParticles}]</span>
+			<span id="expandToggle" style="float: right; font-size: 12px; color: #007cba;">▼ Details</span>
+		`;
+		
+		// HTML detallado (expandible)
+		var detailsHTML = `
+			<div id="ramDetails" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ccc; font-size: 11px;">
+				<strong>Array Memory Breakdown:</strong><br>
+				${detailedBreakdown}<br>
+				<br>
+				<strong>Grid Info:</strong><br>
+				• Main Grid: ${f.fNumX}×${f.fNumY} (${f.fNumCells} cells)<br>
+				• Particle Grid: ${f.pNumX}×${f.pNumY} (${f.pNumCells} cells)<br>
+				• Active Particles: ${f.numParticles}/${f.maxParticles}<br>
+				<br>
+				${browserMemory}
+			</div>
+		`;
+		
+		ramDisplay.innerHTML = mainHTML + detailsHTML;
+		
+		// Añadir funcionalidad de toggle
+		ramDisplay.onclick = function(e) {
+			e.stopPropagation();
+			var details = document.getElementById('ramDetails');
+			var toggle = document.getElementById('expandToggle');
+			
+			if (details.style.display === 'none') {
+				details.style.display = 'block';
+				toggle.textContent = '▲ Hide';
+				toggle.style.color = '#d32f2f';
+			} else {
+				details.style.display = 'none';
+				toggle.textContent = '▼ Details';
+				toggle.style.color = '#007cba';
+			}
+		};
+		
+		// Remove old estimation displays
+		var oldEstimation = document.getElementById('ramInfo');
+		if (oldEstimation) oldEstimation.remove();
+		var oldComparison = document.getElementById('ramComparison');
+		if (oldComparison) oldComparison.remove();
+	}
+
+	function resetSimulation() {
+		// Asegurar que la simulación no esté pausada después del reset
+		scene.paused = false;
+		
+		// Clear buffers
+		if (particleBuffer) {
+			gl.deleteBuffer(particleBuffer);
+			particleBuffer = null;
+		}
+		if (gridVertBuffer) {
+			gl.deleteBuffer(gridVertBuffer);
+			gridVertBuffer = null;
+		}
+		if (gridColorBuffer) {
+			gl.deleteBuffer(gridColorBuffer);
+			gridColorBuffer = null;
+		}
+		if (diskVertBuffer) {
+			gl.deleteBuffer(diskVertBuffer);
+			diskVertBuffer = null;
+		}
+		if (diskIdBuffer) {
+			gl.deleteBuffer(diskIdBuffer);
+			diskIdBuffer = null;
+		}
+		
+		// Clear shaders to force recreation
+		pointShader = null;
+		meshShader = null;
+		
+		// Reset frame counter
+		scene.frameNr = 0;
+		
+		// Clear canvas
+		gl.clearColor(0.9, 0.9, 0.9, 1.0);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		
+		var gridSize = parseInt(document.getElementById('gridSize').value);
+		setupScene(gridSize);
+		
+		// Sincronizar todos los controles después del reset
+		syncControlsWithScene();
+		
+		// Medir RAM real después del reset
+		setTimeout(() => {
+			updateRealRAMUsage();
+		}, 100);
+	}
+
+	function togglePause() {
+		scene.paused = !scene.paused;
+		updatePauseButton();
+	}
+
+	function updatePauseButton() {
+		// Buscar el botón de pausa por su texto/función
+		var buttons = document.querySelectorAll('button');
+		var pauseButton = null;
+		
+		for (var i = 0; i < buttons.length; i++) {
+			if (buttons[i].onclick && buttons[i].onclick.toString().includes('togglePause')) {
+				pauseButton = buttons[i];
+				break;
+			}
+		}
+		
+		if (pauseButton) {
+			if (scene.paused) {
+				pauseButton.textContent = "▶️ Resume";
+				pauseButton.style.backgroundColor = "#ff9800";
+			} else {
+				pauseButton.textContent = "⏸️ Pause";
+				pauseButton.style.backgroundColor = "#4CAF50";
+			}
+		}
+	}
+
+	function syncControlsWithScene() {
+		// Sincronizar sliders con valores
+		document.getElementById('gridSize').value = scene.gridResolution;
+		document.getElementById('gridSizeValue').textContent = scene.gridResolution;
+		
+		document.getElementById('flipRatio').value = scene.flipRatio * 10;
+		document.getElementById('flipRatioValue').textContent = scene.flipRatio.toFixed(1);
+		
+		document.getElementById('viscosity').value = scene.viscosity * 10;
+		document.getElementById('viscosityValue').textContent = scene.viscosity.toFixed(1);
+		
+		// Sincronizar checkboxes
+		document.getElementById('separateParticles').checked = scene.separateParticles;
+		document.getElementById('gravityMode').checked = scene.gravityMode;
+		document.getElementById('accelerometerMode').checked = scene.accelerometerMode;
+		
+		// Sincronizar selects
+		document.getElementById('displayMode').value = scene.displayMode;
+		document.getElementById('containerShape').value = scene.containerShape;
+		
+		// Actualizar botón de pausa
+		updatePauseButton();
+	}
+
+	// Update slider displays
+	document.getElementById('flipRatio').oninput = function() {
+		scene.flipRatio = 0.1 * this.value;
+		document.getElementById('flipRatioValue').textContent = scene.flipRatio.toFixed(1);
+	};
+
+	document.getElementById('viscosity').oninput = function() {
+		scene.viscosity = 0.1 * this.value;
+		document.getElementById('viscosityValue').textContent = scene.viscosity.toFixed(1);
+	};
+
+	// ----------------- Interaction ------------------------------
+
+	var mouseDown = false;
+
+	function startDrag(x, y) {
+		let bounds = canvas.getBoundingClientRect();
+		let mx = x - bounds.left - canvas.clientLeft;
+		let my = y - bounds.top - canvas.clientTop;
+		mouseDown = true;
+
+		x = mx / cScale;
+		y = (canvas.height - my) / cScale;
+
+		if (scene.gravityMode && !scene.accelerometerMode) {
+			// Modo gravedad manual: establecer dirección de gravedad
+			setGravityDirection(x, y);
+		} else if (!scene.gravityMode) {
+			// Modo obstáculo: crear/mover obstáculo
+			setObstacle(x, y, true);
+			scene.paused = false;
+		}
+	}
+
+	function drag(x, y) {
+		if (mouseDown) {
+			let bounds = canvas.getBoundingClientRect();
+			let mx = x - bounds.left - canvas.clientLeft;
+			let my = y - bounds.top - canvas.clientTop;
+
+			x = mx / cScale;
+			y = (canvas.height - my) / cScale;
+
+			if (scene.gravityMode && !scene.accelerometerMode) {
+				// Modo gravedad manual: actualizar dirección de gravedad
+				setGravityDirection(x, y);
+			} else if (!scene.gravityMode) {
+				// Modo obstáculo: mover obstáculo
+				setObstacle(x, y, false);
+			}
+		}
+	}
+
+	function endDrag() {
+		mouseDown = false;
+		scene.obstacleVelX = 0.0;
+		scene.obstacleVelY = 0.0;
+		
+		// En gravity mode, volver a la gravedad por defecto (hacia abajo) cuando se suelta el clic
+		if (scene.gravityMode && !scene.accelerometerMode) {
+			scene.gravityX = 0.0;
+			scene.gravityY = -6;
+		}
+	}
+
+	canvas.addEventListener('mousedown', event => {
+		startDrag(event.x, event.y);
+	});
+
+	canvas.addEventListener('mouseup', event => {
+		endDrag();
+	});
+
+	canvas.addEventListener('mousemove', event => {
+		drag(event.x, event.y);
+	});
+
+	canvas.addEventListener('touchstart', event => {
+		startDrag(event.touches[0].clientX, event.touches[0].clientY);
+	});
+
+	canvas.addEventListener('touchend', event => {
+		endDrag();
+	});
+
+	canvas.addEventListener('touchmove', event => {
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		drag(event.touches[0].clientX, event.touches[0].clientY);
+	}, { passive: false});
+
+	document.addEventListener('keydown', event => {
+		switch(event.key) {
+			case ' ':
+				togglePause();
+				break;
+			case 'r':
+			case 'R':
+				resetSimulation();
+				break;
+		}
+	});
+
+	// ----------------- Main Loop ------------------------------
+
+	function simulate() {
+		if (!scene.paused) {
+			// Aplicar obstáculo dinámicamente cada frame
+			applyObstacle();
+			
+			scene.fluid.simulate(
+				scene.dt, scene.gravityX, scene.gravityY, scene.flipRatio, scene.numPressureIters, 
+				scene.numParticleIters, scene.overRelaxation, scene.compensateDrift, 
+				scene.separateParticles, scene.obstacleX, scene.obstacleY, scene.obstacleRadius
+			);
+		}
+	}
+
+	function update() {
+		simulate();
+		draw();
+		requestAnimationFrame(update);
+	}
+
+	// Initialize
+	setupScene();
+	
+	// Sincronizar todos los controles con la configuración por defecto
+	syncControlsWithScene();
+	
+	// Measure initial RAM usage
+	setTimeout(() => {
+		updateRealRAMUsage();
+	}, 100);
+	
+	// Initialize advanced panel values
+	function initializeAdvancedPanel() {
+		updateParticleRadius();
+		updateTimeStep();
+		updatePressureIters();
+		updateDensity();
+		updateOverRelaxation();
+		updateCompensateDrift();
+		updateSeparateParticles();
+		updateSquareSizeFactor();
+		updateWaterHeight();
+		updateWaterWidth();
+		updateGridVisualSize();
+		updateParticleVisualSize();
+	}
+	initializeAdvancedPanel();
+	
+	// Setup tooltip positioning
+	setupAdvancedTooltips();
+	
+	// Inicializar soporte de acelerómetro si está disponible
+	if (typeof DeviceMotionEvent !== 'undefined') {
+		// Mostrar el checkbox solo si el dispositivo lo soporta
+		document.getElementById('accelerometerMode').style.display = 'inline';
+		document.getElementById('accelerometerMode').parentElement.style.display = 'inline-block';
+	} else {
+		// Ocultar el checkbox si no hay soporte
+		document.getElementById('accelerometerMode').parentElement.style.display = 'none';
+	}
+	
+	update();
+
+</script>
+</body>
+</html>
